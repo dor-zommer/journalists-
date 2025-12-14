@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { Newspaper, LayoutDashboard, Search, Image as ImageIcon, Database } from 'lucide-react';
+import { Newspaper, LayoutDashboard, Search, Database, ListChecks, Sparkles } from 'lucide-react';
 import { AppView } from '../types';
 
 interface SidebarProps {
@@ -8,21 +7,22 @@ interface SidebarProps {
   onChangeView: (view: AppView) => void;
   isMobileOpen: boolean;
   setIsMobileOpen: (isOpen: boolean) => void;
+  savedItemsCount: number;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView, isMobileOpen, setIsMobileOpen }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView, isMobileOpen, setIsMobileOpen, savedItemsCount }) => {
+  
   const menuItems = [
-    { id: AppView.DASHBOARD, label: 'דף הבית', icon: LayoutDashboard },
-    { id: AppView.DAILY_BRIEF, label: 'דו"ח מודיעין (סריקה)', icon: Newspaper },
-    { id: AppView.EDITORIAL_MEETING, label: 'מאגרי מידע (רשימות)', icon: Database },
-    { id: AppView.MONITOR, label: 'סריקת רשת והתראות', icon: Search },
-    { id: AppView.IMAGE_EDITOR, label: 'עורך תמונות AI', icon: ImageIcon },
+    { id: AppView.MEETING_DASHBOARD, label: 'ישיבת מערכת', icon: LayoutDashboard, badge: savedItemsCount > 0 ? savedItemsCount : null },
+    { id: AppView.DATABASE_SCANNER, label: 'סורק מאגרים', icon: Database },
+    { id: AppView.MONITOR, label: 'מוניטור', icon: Search },
+    { id: AppView.AI_STUDIO, label: 'סטודיו AI', icon: Sparkles },
   ];
 
   const sidebarClasses = `
     fixed inset-y-0 right-0 z-30 w-64 bg-slate-900 text-white transform transition-transform duration-300 ease-in-out
     ${isMobileOpen ? 'translate-x-0' : 'translate-x-full'}
-    md:translate-x-0 md:static md:inset-auto
+    md:translate-x-0 md:inset-auto flex flex-col shadow-2xl
   `;
 
   return (
@@ -37,15 +37,15 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView, isMobileOp
 
       {/* Sidebar Content */}
       <div className={sidebarClasses}>
-        <div className="p-6 border-b border-slate-800">
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Newspaper className="w-8 h-8 text-blue-400" />
+        <div className="p-6 border-b border-slate-800 bg-slate-950">
+          <h1 className="text-2xl font-bold flex items-center gap-2 text-white">
+            <Newspaper className="w-7 h-7 text-blue-500" />
             JournalistAI
           </h1>
-          <p className="text-slate-400 text-sm mt-1">כלי עזר לעיתונאים</p>
+          <p className="text-slate-400 text-xs mt-1 pr-9 opacity-80">מערכת תחקיר חכמה</p>
         </div>
 
-        <nav className="mt-6 px-4 space-y-2">
+        <nav className="flex-1 mt-6 px-3 space-y-2">
           {menuItems.map((item) => {
             const Icon = item.icon;
             const isActive = currentView === item.id;
@@ -56,22 +56,29 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView, isMobileOp
                   onChangeView(item.id);
                   setIsMobileOpen(false);
                 }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-lg transition-all duration-200 group ${
                   isActive 
-                    ? 'bg-blue-600 text-white' 
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20 translate-x-[-4px]' 
                     : 'text-slate-300 hover:bg-slate-800 hover:text-white'
                 }`}
               >
-                <Icon className="w-5 h-5" />
-                <span className="font-medium">{item.label}</span>
+                <div className="relative">
+                  <Icon className={`w-5 h-5 transition-transform group-hover:scale-110 ${isActive ? 'text-white' : 'text-slate-400'}`} />
+                  {item.badge && (
+                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full font-bold animate-pulse">
+                      {item.badge}
+                    </span>
+                  )}
+                </div>
+                <span className="font-medium tracking-wide">{item.label}</span>
               </button>
             );
           })}
         </nav>
 
-        <div className="absolute bottom-0 w-full p-6 border-t border-slate-800">
-          <div className="text-xs text-slate-500 text-center">
-             מופעל ע"י Gemini 2.5
+        <div className="p-6 border-t border-slate-800 bg-slate-950">
+          <div className="flex items-center gap-2 text-xs text-slate-500 justify-center opacity-60">
+             <span>v3.0.0</span> • <span>Gemini Pro</span>
           </div>
         </div>
       </div>

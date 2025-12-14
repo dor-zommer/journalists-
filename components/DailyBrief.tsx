@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { generateDailyBrief, BriefCategory } from '../services/geminiService';
+import { generateDailyBrief } from '../services/geminiService';
 import { FileText, Loader2, ExternalLink, RefreshCw, Filter, Download, CheckSquare, Square, Clock } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { GroundingSource, TimeRange } from '../types';
+import { GroundingSource, TimeRange, BriefCategory } from '../types';
 
 const DailyBrief: React.FC = () => {
   const [loading, setLoading] = useState(false);

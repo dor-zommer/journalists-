@@ -1,32 +1,52 @@
-
 import React, { useState } from 'react';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
-import DailyBrief from './components/DailyBrief';
 import Monitor from './components/Monitor';
-import ImageEditor from './components/ImageEditor';
-import EditorialMeeting from './components/EditorialMeeting';
-import { AppView } from './types';
+import EditorialMeeting from './components/EditorialMeeting'; // Acts as Scanner now
+import MeetingDashboard from './components/MeetingDashboard'; // New Dashboard
+import SmartEditor from './components/SmartEditor'; // New AI Studio
+import { AppView, SavedItem } from './types';
 import { Menu } from 'lucide-react';
 
 const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<AppView>(AppView.DASHBOARD);
+  const [currentView, setCurrentView] = useState<AppView>(AppView.MEETING_DASHBOARD);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  
+  // State for items saved to the editorial meeting dashboard
+  const [savedItems, setSavedItems] = useState<SavedItem[]>([]);
+
+  const addToDashboard = (item: SavedItem) => {
+    setSavedItems(prev => [item, ...prev]);
+  };
+
+  const removeFromDashboard = (id: string) => {
+    setSavedItems(prev => prev.filter(item => item.id !== id));
+  };
 
   const renderView = () => {
     switch (currentView) {
       case AppView.DASHBOARD:
         return <Dashboard onChangeView={setCurrentView} />;
-      case AppView.DAILY_BRIEF:
-        return <DailyBrief />;
-      case AppView.EDITORIAL_MEETING:
-        return <EditorialMeeting />;
+      case AppView.MEETING_DASHBOARD:
+        return (
+          <MeetingDashboard 
+            savedItems={savedItems} 
+            onRemoveItem={removeFromDashboard} 
+            onChangeView={setCurrentView}
+          />
+        );
+      case AppView.DATABASE_SCANNER:
+        return <EditorialMeeting onSaveToDashboard={addToDashboard} />;
       case AppView.MONITOR:
-        return <Monitor />;
-      case AppView.IMAGE_EDITOR:
-        return <ImageEditor />;
+        return <Monitor onSaveToDashboard={addToDashboard} />;
+      case AppView.AI_STUDIO:
+        return <SmartEditor />;
       default:
-        return <Dashboard onChangeView={setCurrentView} />;
+        return <MeetingDashboard 
+            savedItems={savedItems} 
+            onRemoveItem={removeFromDashboard} 
+            onChangeView={setCurrentView}
+          />;
     }
   };
 
@@ -37,6 +57,7 @@ const App: React.FC = () => {
         onChangeView={setCurrentView}
         isMobileOpen={isMobileOpen}
         setIsMobileOpen={setIsMobileOpen}
+        savedItemsCount={savedItems.length}
       />
       
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
