@@ -1,0 +1,8 @@
+{
+  "name": "JournalistAI - העוזר העיתונאי החכם",
+  "description": "כלי לעיתונאים לסריקת חדשות, חשיפות, מכרזים, תכנון ובנייה, וסיכום דיוני כנסת.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
