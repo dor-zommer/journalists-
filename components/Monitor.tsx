@@ -1,18 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { monitorTopics } from '../services/geminiService';
-import { Search, Loader2, Plus, X, Globe, Calendar, AlertTriangle, ExternalLink, Clock, Building, Link as LinkIcon, Download, Share2, Mail, MessageCircle, Save, History, CheckCircle, Database, RotateCcw } from 'lucide-react';
+import { Search, Loader2, Plus, X, Globe, Calendar, AlertTriangle, ExternalLink, Clock, Building, Link as LinkIcon, Download, Share2, Mail, MessageCircle, Save, History, CheckCircle, Database } from 'lucide-react';
 import { MonitorResult, TimeRange, MonitorEntity, MonitorResponse, SavedItem, ArchivedScan } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 
 interface MonitorProps {
   onSaveToDashboard?: (item: SavedItem) => void;
-}
-
-interface RecentSearch {
-  id: string;
-  topics: string[];
-  entities: MonitorEntity[];
-  timestamp: Date;
 }
 
 const Monitor: React.FC<MonitorProps> = ({ onSaveToDashboard }) => {
@@ -29,9 +22,6 @@ const Monitor: React.FC<MonitorProps> = ({ onSaveToDashboard }) => {
 
   const [timeRange, setTimeRange] = useState<TimeRange>('week_window');
 
-  // Recent Searches
-  const [recentSearches, setRecentSearches] = useState<RecentSearch[]>([]);
-
   // Results
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<MonitorResponse | null>(null);
@@ -39,23 +29,6 @@ const Monitor: React.FC<MonitorProps> = ({ onSaveToDashboard }) => {
   // History / Archive
   const [archive, setArchive] = useState<ArchivedScan[]>([]);
   const [isSavedToDashboard, setIsSavedToDashboard] = useState(false);
-
-  // --- Effects ---
-  useEffect(() => {
-    // Load recent searches from local storage
-    const savedHistory = localStorage.getItem('journalist_monitor_history');
-    if (savedHistory) {
-      try {
-        const parsed = JSON.parse(savedHistory);
-        setRecentSearches(parsed.map((item: any) => ({
-          ...item,
-          timestamp: new Date(item.timestamp)
-        })));
-      } catch (e) {
-        console.error('Failed to load history', e);
-      }
-    }
-  }, []);
 
   // --- Handlers ---
 
@@ -88,39 +61,8 @@ const Monitor: React.FC<MonitorProps> = ({ onSaveToDashboard }) => {
     setEntities(entities.filter(e => e.id !== id));
   };
 
-  const saveToHistory = () => {
-    const newSearch: RecentSearch = {
-      id: uuidv4(),
-      topics: [...topics],
-      entities: [...entities],
-      timestamp: new Date()
-    };
-
-    setRecentSearches(prev => {
-      // Avoid duplicates at the top of the list
-      if (prev.length > 0) {
-        const last = prev[0];
-        const isTopicsSame = JSON.stringify(last.topics.sort()) === JSON.stringify(topics.sort());
-        const isEntitiesSame = JSON.stringify(last.entities) === JSON.stringify(entities);
-        if (isTopicsSame && isEntitiesSame) return prev;
-      }
-
-      const updated = [newSearch, ...prev].slice(0, 5); // Keep last 5
-      localStorage.setItem('journalist_monitor_history', JSON.stringify(updated));
-      return updated;
-    });
-  };
-
-  const restoreSearch = (search: RecentSearch) => {
-    setTopics([...search.topics]);
-    setEntities([...search.entities]);
-  };
-
   const runMonitor = async () => {
     if (topics.length === 0 && entities.length === 0) return;
-    
-    saveToHistory();
-    
     setLoading(true);
     setResponse(null);
     setIsSavedToDashboard(false);
@@ -351,39 +293,6 @@ const Monitor: React.FC<MonitorProps> = ({ onSaveToDashboard }) => {
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                 בצע סריקת עומק
               </button>
-
-              {/* Recent Searches Section */}
-              {recentSearches.length > 0 && (
-                <div className="mt-8 pt-6 border-t border-slate-200">
-                  <h3 className="font-bold text-sm mb-3 text-slate-400 flex items-center gap-2">
-                    <History className="w-4 h-4" />
-                    חיפושים אחרונים
-                  </h3>
-                  <div className="space-y-2">
-                    {recentSearches.map(search => (
-                      <button
-                        key={search.id}
-                        onClick={() => restoreSearch(search)}
-                        className="w-full text-right bg-slate-50 hover:bg-white border border-slate-200 hover:border-blue-300 p-2.5 rounded-lg group transition-all"
-                        title="לחץ לשחזור חיפוש זה"
-                      >
-                        <div className="flex items-center justify-between mb-1">
-                           <span className="text-[10px] text-slate-400">{search.timestamp.toLocaleDateString('he-IL')} {search.timestamp.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                           <RotateCcw className="w-3 h-3 text-slate-400 group-hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-                        </div>
-                        <div className="text-xs text-slate-700 font-medium truncate">
-                          {search.topics.join(', ')}
-                        </div>
-                        {search.entities.length > 0 && (
-                          <div className="text-[10px] text-slate-500 truncate mt-0.5">
-                            + {search.entities.length} גופים
-                          </div>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         )}
