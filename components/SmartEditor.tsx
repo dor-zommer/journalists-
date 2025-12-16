@@ -57,15 +57,16 @@ const SmartEditor: React.FC = () => {
         
         {/* Input Column */}
         <div className="flex flex-col gap-4">
-           <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex-1 flex flex-col">
+           {/* Changed to dark theme for white text support */}
+           <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-sm flex-1 flex flex-col">
               <textarea
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 placeholder="הדבק כאן טקסט גולמי (הודעה לעיתונות, פרוטוקול, טיוטה)..."
-                className="flex-1 w-full p-4 text-slate-700 placeholder:text-slate-300 outline-none resize-none text-base leading-relaxed"
+                className="flex-1 w-full p-4 bg-transparent text-white placeholder:text-slate-600 outline-none resize-none text-base leading-relaxed"
                 dir="rtl"
               />
-              <div className="mt-2 text-xs text-slate-400 text-left px-2">
+              <div className="mt-2 text-xs text-slate-500 text-left px-2">
                 {inputText.length} תווים
               </div>
            </div>

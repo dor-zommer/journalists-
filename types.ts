@@ -64,6 +64,7 @@ export interface ArchivedScan {
   id: string;
   date: Date;
   topics: string[];
+  entities?: MonitorEntity[]; // Added optional entities
   data: MonitorResponse;
 }
 

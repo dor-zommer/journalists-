@@ -1,11 +1,18 @@
 import React, { useState } from 'react';
 import { monitorTopics } from '../services/geminiService';
-import { Search, Loader2, Plus, X, Globe, Calendar, AlertTriangle, ExternalLink, Clock, Building, Link as LinkIcon, Download, Share2, Mail, MessageCircle, Save, History, CheckCircle, Database } from 'lucide-react';
+import { Search, Loader2, Plus, X, Globe, Calendar, AlertTriangle, ExternalLink, Clock, Building, Link as LinkIcon, Download, Share2, Mail, MessageCircle, Save, History, CheckCircle, Database, RotateCcw, ArrowRight } from 'lucide-react';
 import { MonitorResult, TimeRange, MonitorEntity, MonitorResponse, SavedItem, ArchivedScan } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 
 interface MonitorProps {
   onSaveToDashboard?: (item: SavedItem) => void;
+}
+
+interface SearchHistoryItem {
+  id: string;
+  date: Date;
+  topics: string[];
+  entities: MonitorEntity[];
 }
 
 const Monitor: React.FC<MonitorProps> = ({ onSaveToDashboard }) => {
@@ -28,6 +35,7 @@ const Monitor: React.FC<MonitorProps> = ({ onSaveToDashboard }) => {
 
   // History / Archive
   const [archive, setArchive] = useState<ArchivedScan[]>([]);
+  const [searchHistory, setSearchHistory] = useState<SearchHistoryItem[]>([]);
   const [isSavedToDashboard, setIsSavedToDashboard] = useState(false);
 
   // --- Handlers ---
@@ -61,13 +69,36 @@ const Monitor: React.FC<MonitorProps> = ({ onSaveToDashboard }) => {
     setEntities(entities.filter(e => e.id !== id));
   };
 
-  const runMonitor = async () => {
-    if (topics.length === 0 && entities.length === 0) return;
+  const runMonitor = async (overrideTopics?: string[], overrideEntities?: MonitorEntity[]) => {
+    const topicsToRun = overrideTopics || topics;
+    const entitiesToRun = overrideEntities || entities;
+
+    if (topicsToRun.length === 0 && entitiesToRun.length === 0) return;
+    
     setLoading(true);
     setResponse(null);
     setIsSavedToDashboard(false);
+
+    // Add to Search History
+    const historyItem: SearchHistoryItem = {
+      id: uuidv4(),
+      date: new Date(),
+      topics: [...topicsToRun],
+      entities: [...entitiesToRun]
+    };
+    
+    setSearchHistory(prev => {
+      // Avoid exact duplicates at the top of the list
+      const isDuplicate = prev.length > 0 && 
+        JSON.stringify(prev[0].topics) === JSON.stringify(topicsToRun) && 
+        JSON.stringify(prev[0].entities) === JSON.stringify(entitiesToRun);
+      
+      if (isDuplicate) return prev;
+      return [historyItem, ...prev].slice(0, 10);
+    });
+
     try {
-      const data = await monitorTopics(topics, entities, timeRange);
+      const data = await monitorTopics(topicsToRun, entitiesToRun, timeRange);
       setResponse(data);
     } catch (e) {
       console.error(e);
@@ -84,6 +115,7 @@ const Monitor: React.FC<MonitorProps> = ({ onSaveToDashboard }) => {
       id: uuidv4(),
       date: new Date(),
       topics: [...topics],
+      entities: [...entities],
       data: response
     };
     setArchive([newScan, ...archive]);
@@ -122,18 +154,34 @@ const Monitor: React.FC<MonitorProps> = ({ onSaveToDashboard }) => {
     setIsSavedToDashboard(true);
   };
 
-  const handleShare = (platform: 'whatsapp' | 'email') => {
+  const handleNativeShare = async () => {
+    if (!response) return;
+    const text = `דו"ח מוניטור JournalistAI (${new Date().toLocaleDateString()}):
+${response.executiveSummary.join('\n- ')}
+    
+לדוח המלא: [קישור למערכת]`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'JournalistAI Monitor Report',
+          text: text,
+          // url: window.location.href // Optional
+        });
+      } catch (err) {
+        console.error('Error sharing', err);
+      }
+    } else {
+       // Fallback for desktop: Open standard mailto
+       window.open(`mailto:?subject=דו"ח מוניטור חדש&body=${encodeURIComponent(text)}`, '_blank');
+    }
+  };
+
+  const handleWhatsAppShare = () => {
     if (!response) return;
     const text = `דו"ח מוניטור (${new Date().toLocaleDateString()}):
-    ${response.executiveSummary.join('\n- ')}
-    
-    קישור למערכת JournalistAI`;
-    
-    if (platform === 'whatsapp') {
-      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
-    } else {
-      window.open(`mailto:?subject=דו"ח מוניטור חדש&body=${encodeURIComponent(text)}`, '_blank');
-    }
+${response.executiveSummary.join('\n- ')}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
 
   const handleDownload = () => {
@@ -147,6 +195,14 @@ const Monitor: React.FC<MonitorProps> = ({ onSaveToDashboard }) => {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+  };
+
+  const restoreSearch = (searchItem: SearchHistoryItem | ArchivedScan) => {
+    setTopics(searchItem.topics);
+    if (searchItem.entities) {
+        setEntities(searchItem.entities);
+    }
+    setActiveTab('search');
   };
 
   const timeRanges: {id: TimeRange, label: string}[] = [
@@ -173,7 +229,7 @@ const Monitor: React.FC<MonitorProps> = ({ onSaveToDashboard }) => {
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${activeTab === 'history' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
             >
               <History className="w-4 h-4" />
-              ארכיון דוחות ({archive.length})
+              ארכיון והיסטוריה
             </button>
          </div>
       </div>
@@ -286,7 +342,7 @@ const Monitor: React.FC<MonitorProps> = ({ onSaveToDashboard }) => {
               </div>
 
               <button
-                onClick={runMonitor}
+                onClick={() => runMonitor()}
                 disabled={loading || (topics.length === 0 && entities.length === 0)}
                 className="w-full mt-6 bg-slate-900 hover:bg-slate-800 text-white font-medium py-3 rounded-lg flex items-center justify-center gap-2 transition-colors disabled:opacity-50 shadow-md"
               >
@@ -302,36 +358,90 @@ const Monitor: React.FC<MonitorProps> = ({ onSaveToDashboard }) => {
           
           {/* History View */}
           {activeTab === 'history' && (
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:overflow-y-auto custom-scrollbar p-1">
-                {archive.length === 0 ? (
-                  <div className="col-span-full flex flex-col items-center justify-center text-slate-400 h-64">
-                    <History className="w-12 h-12 opacity-20 mb-3"/>
-                    <p>ארכיון הדוחות ריק</p>
-                  </div>
-                ) : (
-                  archive.map(scan => (
-                     <div key={scan.id} className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 hover:border-slate-300 transition-all cursor-pointer">
-                        <div className="flex justify-between items-start mb-2">
-                           <span className="text-xs text-slate-500">{scan.date.toLocaleDateString()}</span>
-                           <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px]">{scan.topics.length} נושאים</span>
-                        </div>
-                        <h4 className="font-bold text-slate-800 mb-2 truncate">{scan.topics.join(', ')}</h4>
-                        <div className="text-xs text-slate-500 line-clamp-3 bg-slate-50 p-2 rounded">
-                           {scan.data.executiveSummary[0] || 'אין תקציר'}
-                        </div>
-                        <button 
-                          onClick={() => {
-                             setResponse(scan.data);
-                             setTopics(scan.topics);
-                             setActiveTab('search');
-                          }}
-                          className="w-full mt-3 text-xs bg-white border border-slate-300 py-2 rounded text-slate-700 hover:bg-slate-50"
-                        >
-                          טען דוח זה
-                        </button>
-                     </div>
-                  ))
-                )}
+             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:overflow-y-auto custom-scrollbar p-1">
+                
+                {/* Recent Searches Column */}
+                <div className="space-y-4">
+                  <h3 className="font-bold text-slate-700 flex items-center gap-2 sticky top-0 bg-slate-50 py-2 z-10">
+                     <RotateCcw className="w-4 h-4" /> חיפושים אחרונים (אוטומטי)
+                  </h3>
+                  {searchHistory.length === 0 ? (
+                    <div className="text-center py-8 text-slate-400 bg-white rounded-xl border border-dashed border-slate-300">
+                       <p className="text-sm">עדיין לא בוצעו חיפושים</p>
+                    </div>
+                  ) : (
+                    searchHistory.map(item => (
+                       <div key={item.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 hover:border-indigo-300 transition-all flex flex-col gap-3">
+                          <div className="flex justify-between items-start">
+                             <div>
+                                <span className="text-xs text-slate-400 mb-1 block">{item.date.toLocaleString('he-IL')}</span>
+                                <div className="font-bold text-slate-800 text-sm mb-1">{item.topics.join(', ')}</div>
+                                {item.entities.length > 0 && (
+                                   <div className="text-xs text-slate-500 flex items-center gap-1">
+                                      <Building className="w-3 h-3"/> {item.entities.length} גופים במעקב
+                                   </div>
+                                )}
+                             </div>
+                             <button 
+                               onClick={() => {
+                                  restoreSearch(item);
+                                  runMonitor(item.topics, item.entities);
+                               }}
+                               className="text-xs bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg hover:bg-indigo-100 font-bold flex items-center gap-1"
+                             >
+                                <RotateCcw className="w-3 h-3" /> סרוק שוב
+                             </button>
+                          </div>
+                       </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Archive Column */}
+                <div className="space-y-4">
+                  <h3 className="font-bold text-slate-700 flex items-center gap-2 sticky top-0 bg-slate-50 py-2 z-10">
+                     <Save className="w-4 h-4" /> דוחות שמורים (ארכיון)
+                  </h3>
+                  {archive.length === 0 ? (
+                    <div className="text-center py-8 text-slate-400 bg-white rounded-xl border border-dashed border-slate-300">
+                       <p className="text-sm">ארכיון הדוחות ריק</p>
+                    </div>
+                  ) : (
+                    archive.map(scan => (
+                       <div key={scan.id} className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 hover:border-slate-300 transition-all">
+                          <div className="flex justify-between items-start mb-2">
+                             <span className="text-xs text-slate-500">{scan.date.toLocaleDateString()}</span>
+                             <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px]">{scan.topics.length} נושאים</span>
+                          </div>
+                          <h4 className="font-bold text-slate-800 mb-2 truncate">{scan.topics.join(', ')}</h4>
+                          <div className="text-xs text-slate-500 line-clamp-3 bg-slate-50 p-2 rounded mb-3">
+                             {scan.data.executiveSummary[0] || 'אין תקציר'}
+                          </div>
+                          <div className="flex gap-2">
+                            <button 
+                              onClick={() => {
+                                 setResponse(scan.data);
+                                 restoreSearch(scan); // Also restores input state
+                              }}
+                              className="flex-1 text-xs bg-slate-900 text-white py-2 rounded font-bold hover:bg-slate-800 flex items-center justify-center gap-1"
+                            >
+                              <ArrowRight className="w-3 h-3" /> צפה בדוח
+                            </button>
+                            <button 
+                              onClick={() => {
+                                 restoreSearch(scan);
+                                 runMonitor(scan.topics, scan.entities);
+                              }}
+                              className="px-3 text-xs bg-slate-100 text-slate-700 py-2 rounded font-bold hover:bg-slate-200"
+                              title="סרוק שוב עם הגדרות אלו"
+                            >
+                              <RotateCcw className="w-3 h-3" />
+                            </button>
+                          </div>
+                       </div>
+                    ))
+                  )}
+                </div>
              </div>
           )}
 
@@ -369,10 +479,18 @@ const Monitor: React.FC<MonitorProps> = ({ onSaveToDashboard }) => {
                            
                            {/* Actions Toolbar */}
                            <div className="flex gap-2">
-                              <button onClick={() => handleShare('whatsapp')} title="שתף בוואטסאפ" className="p-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100"><MessageCircle className="w-4 h-4"/></button>
-                              <button onClick={() => handleShare('email')} title="שלח במייל" className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100"><Mail className="w-4 h-4"/></button>
+                              <button 
+                                onClick={handleNativeShare}
+                                className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm transition-all"
+                              >
+                                <Share2 className="w-4 h-4"/> שתף
+                              </button>
+                              
+                              <button onClick={handleWhatsAppShare} title="שתף בוואטסאפ" className="p-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100"><MessageCircle className="w-4 h-4"/></button>
                               <button onClick={handleDownload} title="הורד קובץ" className="p-2 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-100"><Download className="w-4 h-4"/></button>
+                              
                               <div className="w-px bg-slate-200 mx-1 h-8"></div>
+                              
                               <button 
                                 onClick={handleSaveToDashboard} 
                                 disabled={isSavedToDashboard}

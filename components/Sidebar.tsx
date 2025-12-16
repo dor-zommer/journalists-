@@ -22,7 +22,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView, isMobileOp
   const sidebarClasses = `
     fixed inset-y-0 right-0 z-30 w-64 bg-slate-900 text-white transform transition-transform duration-300 ease-in-out
     ${isMobileOpen ? 'translate-x-0' : 'translate-x-full'}
-    md:translate-x-0 md:inset-auto flex flex-col shadow-2xl
+    md:relative md:translate-x-0 flex flex-col shadow-2xl h-full
   `;
 
   return (
