@@ -298,7 +298,7 @@ export const monitorTopics = async (topics: string[], entities: MonitorEntity[],
     `;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-pro-preview',
       contents: prompt,
       config: {
         tools: [{ googleSearch: {} }],
@@ -368,7 +368,7 @@ export const generateDailyBrief = async (categories: BriefCategory[], timeRange:
     `;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-pro-preview',
       contents: prompt,
       config: {
         tools: [{ googleSearch: {} }],
@@ -414,7 +414,7 @@ export const generateConsolidatedReport = async (items: string[]): Promise<strin
     `;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-pro-preview',
       contents: prompt,
     });
 
@@ -472,7 +472,7 @@ export const processTextWithGemini = async (text: string, task: 'proofread' | 's
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-pro-preview',
       contents: prompt,
     });
     return response.text || "לא התקבלה תשובה מהמודל.";
