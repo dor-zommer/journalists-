@@ -1,13 +1,20 @@
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import { GroundingSource, TimeRange, EditorialCategory, BriefCategory, MonitorResult, EditorialItem, MonitorEntity, MonitorResponse } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const getClient = () => {
+  const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("Missing Gemini API key. Set GEMINI_API_KEY in your .env.local file.");
+  }
+  return new GoogleGenAI({ apiKey });
+};
 
 /**
  * Generates specific list based on category.
  */
 export const generateEditorialMeeting = async (timeRange: TimeRange, category: EditorialCategory): Promise<{ items: EditorialItem[]; sources: GroundingSource[] }> => {
   try {
+    const ai = getClient();
     // 1. Define Time Text Logic
     let timeText = "";
     switch (timeRange) {
@@ -249,6 +256,7 @@ export const generateEditorialMeeting = async (timeRange: TimeRange, category: E
  */
 export const monitorTopics = async (topics: string[], entities: MonitorEntity[], timeRange: TimeRange): Promise<MonitorResponse> => {
   try {
+    const ai = getClient();
     let timeText = "";
     switch (timeRange) {
       case '24h_window': timeText = "ב-72 השעות האחרונות (אתמול, היום ושלשום)"; break;
@@ -328,6 +336,7 @@ export const monitorTopics = async (topics: string[], entities: MonitorEntity[],
 // ... rest of file (generateDailyBrief, generateConsolidatedReport, processTextWithGemini, etc.) remains unchanged
 export const generateDailyBrief = async (categories: BriefCategory[], timeRange: TimeRange): Promise<{ text: string; sources: GroundingSource[] }> => {
   try {
+    const ai = getClient();
     let timeText = "";
     switch (timeRange) {
       case '12h': timeText = "ב-12 השעות האחרונות"; break;
@@ -392,6 +401,7 @@ export const generateDailyBrief = async (categories: BriefCategory[], timeRange:
  */
 export const generateConsolidatedReport = async (items: string[]): Promise<string> => {
   try {
+    const ai = getClient();
     const context = items.join("\n\n-----------------\n\n");
     const prompt = `
       פעל כעורך ראשי של כלי תקשורת מוביל.
@@ -471,6 +481,7 @@ export const processTextWithGemini = async (text: string, task: 'proofread' | 's
   }
 
   try {
+    const ai = getClient();
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: prompt,
