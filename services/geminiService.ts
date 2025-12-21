@@ -1,12 +1,17 @@
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import { GroundingSource, TimeRange, EditorialCategory, BriefCategory, MonitorResult, EditorialItem, MonitorEntity, MonitorResponse } from "../types";
 
+let cachedClient: GoogleGenAI | null = null;
+
 const getClient = () => {
-  const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     throw new Error("Missing Gemini API key. Set GEMINI_API_KEY in your .env.local file.");
   }
-  return new GoogleGenAI({ apiKey });
+  if (!cachedClient) {
+    cachedClient = new GoogleGenAI({ apiKey });
+  }
+  return cachedClient;
 };
 
 /**
