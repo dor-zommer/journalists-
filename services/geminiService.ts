@@ -2,7 +2,12 @@
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import { GroundingSource, TimeRange, EditorialCategory, BriefCategory, MonitorResult, EditorialItem, MonitorEntity, MonitorResponse } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+if (!apiKey) {
+  throw new Error("Missing Gemini API key. Set GEMINI_API_KEY in your .env.local file.");
+}
+
+const ai = new GoogleGenAI({ apiKey });
 
 /**
  * Generates specific list based on category.
