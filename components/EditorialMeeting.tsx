@@ -1,6 +1,7 @@
+
 import React, { useState } from 'react';
 import { generateEditorialMeeting } from '../services/geminiService';
-import { Loader2, ExternalLink, RefreshCw, Clock, Download, ListChecks, Building2, Gavel, Scale, FileText, LayoutList, Info, Globe, Briefcase, FileCode, ShoppingCart, Calendar, PlusCircle, CheckCircle, Database, ChevronDown, X } from 'lucide-react';
+import { Loader2, ExternalLink, RefreshCw, Clock, Download, ListChecks, Building2, Gavel, Scale, FileText, LayoutList, Info, Globe, Briefcase, FileCode, ShoppingCart, Calendar, PlusCircle, CheckCircle, Database, ChevronDown, X, Zap, Sparkles } from 'lucide-react';
 import { GroundingSource, TimeRange, EditorialCategory, SavedItem, EditorialItem } from '../types';
 
 interface EditorialMeetingProps {
@@ -73,6 +74,7 @@ const EditorialMeeting: React.FC<EditorialMeetingProps> = ({ onSaveToDashboard }
   const [sources, setSources] = useState<GroundingSource[]>([]);
   const [isSaved, setIsSaved] = useState(false);
   const [selectedItem, setSelectedItem] = useState<EditorialItem | null>(null);
+  const [isDeepScan, setIsDeepScan] = useState(false);
   
   const [timeRange, setTimeRange] = useState<TimeRange>('month');
   const [activeCategory, setActiveCategory] = useState<EditorialCategory>('government_decisions');
@@ -84,12 +86,11 @@ const EditorialMeeting: React.FC<EditorialMeetingProps> = ({ onSaveToDashboard }
     setVisibleCount(ITEMS_PER_PAGE);
     setIsSaved(false);
     try {
-      const result = await generateEditorialMeeting(timeRange, activeCategory);
+      const result = await generateEditorialMeeting(timeRange, activeCategory, isDeepScan);
       setItems(result.items);
       setSources(result.sources);
     } catch (error) {
       console.error(error);
-      // In case of error, we just keep items empty and UI will show state
     } finally {
       setLoading(false);
     }
@@ -136,16 +137,13 @@ const EditorialMeeting: React.FC<EditorialMeetingProps> = ({ onSaveToDashboard }
 
   const handleSaveToDashboard = () => {
     if (items.length === 0) return;
-    
-    // Convert items to Markdown table string for the dashboard which expects text content
     const reportContent = createMarkdownTable();
-    
     const newItem: SavedItem = {
       id: Date.now().toString(),
       category: categories.find(c => c.id === activeCategory)?.label || 'כללי',
       categoryType: activeCategory,
       content: reportContent,
-      originalData: items, // Save raw data for the modal!
+      originalData: items,
       timestamp: new Date(),
       sources: sources
     };
@@ -156,18 +154,13 @@ const EditorialMeeting: React.FC<EditorialMeetingProps> = ({ onSaveToDashboard }
 
   const handleExport = () => {
     if (items.length === 0) return;
-    
-    // Create CSV content
-    const bom = "\uFEFF"; // Byte Order Mark for Hebrew support in Excel
+    const bom = "\uFEFF";
     const headerRow = `${headers.date},${headers.meta},${headers.title},${headers.description},קישור\n`;
     const rows = items.map(item => {
-      // Escape quotes and handle commas
       const clean = (str: string) => `"${(str || '').replace(/"/g, '""')}"`;
       return `${clean(item.date)},${clean(item.meta)},${clean(item.title)},${clean(item.description)},${clean(item.link)}`;
     }).join('\n');
-    
     const csvContent = bom + headerRow + rows;
-    
     const element = document.createElement("a");
     const file = new Blob([csvContent], {type: 'text/csv;charset=utf-8;'});
     element.href = URL.createObjectURL(file);
@@ -184,62 +177,14 @@ const EditorialMeeting: React.FC<EditorialMeetingProps> = ({ onSaveToDashboard }
   ];
 
   const categories: {id: EditorialCategory, label: string, icon: any, desc: string, url: string}[] = [
-    { 
-      id: 'government_decisions', 
-      label: 'החלטות ממשלה', 
-      icon: Briefcase, 
-      desc: 'החלטות שאושרו (28 יום אחורה)',
-      url: 'https://www.gov.il/he/departments/policies'
-    },
-    { 
-      id: 'government_agenda', 
-      label: 'סדר יום הממשלה', 
-      icon: Calendar, 
-      desc: 'הצעות לדיון בישיבה הקרובה',
-      url: 'https://www.gov.il/he/departments/topics/seder-yom/govil-landing-page'
-    },
-    { 
-      id: 'knesset_agenda', 
-      label: 'סדר יום ועדות', 
-      icon: Building2, 
-      desc: 'דיונים בכנסת (לו"ז ועדות)',
-      url: 'https://main.knesset.gov.il/Activity/Committees/Pages/AllCommitteesAgenda.aspx'
-    },
-    { 
-      id: 'legislation_tazkirim', 
-      label: 'תזכירי חוק (ממשלתי)', 
-      icon: FileText, 
-      desc: 'פתוחים להערות באתר תזכירים',
-      url: 'https://www.tazkirim.gov.il/'
-    },
-    { 
-      id: 'legislation_knesset', 
-      label: 'מאגר חקיקה (לאומי)', 
-      icon: Gavel, 
-      desc: 'הצעות חוק בכנסת (מאגר לאומי)',
-      url: 'https://main.knesset.gov.il/Activity/Legislation/Laws/Pages/LawSuggestionsSearch.aspx'
-    },
-    { 
-      id: 'procurement', 
-      label: 'רכש ומכרזים', 
-      icon: ShoppingCart, 
-      desc: 'חיפוש הודעות פטור ומכרזים',
-      url: 'https://mr.gov.il/'
-    },
-    { 
-      id: 'planning', 
-      label: 'תכנון (הודעות הפקדה)', 
-      icon: LayoutList, 
-      desc: 'חיפוש הודעות על תוכניות מחוזיות',
-      url: 'https://mavat.iplan.gov.il/planning-public-information'
-    },
-    { 
-      id: 'courts', 
-      label: 'דיוני בג"ץ', 
-      icon: Scale, 
-      desc: 'יומן דיונים עתידי',
-      url: 'https://supreme.court.gov.il/Pages/Diary.aspx'
-    },
+    { id: 'government_decisions', label: 'החלטות ממשלה', icon: Briefcase, desc: 'החלטות שאושרו (28 יום אחורה)', url: 'https://www.gov.il/he/departments/policies' },
+    { id: 'government_agenda', label: 'סדר יום הממשלה', icon: Calendar, desc: 'הצעות לדיון בישיבה הקרובה', url: 'https://www.gov.il/he/departments/topics/seder-yom/govil-landing-page' },
+    { id: 'knesset_agenda', label: 'סדר יום ועדות', icon: Building2, desc: 'דיונים בכנסת (לו"ז ועדות)', url: 'https://main.knesset.gov.il/Activity/Committees/Pages/AllCommitteesAgenda.aspx' },
+    { id: 'legislation_tazkirim', label: 'תזכירי חוק (ממשלתי)', icon: FileText, desc: 'פתוחים להערות באתר תזכירים', url: 'https://www.tazkirim.gov.il/' },
+    { id: 'legislation_knesset', label: 'מאגר חקיקה (לאומי)', icon: Gavel, desc: 'הצעות חוק בכנסת (מאגר לאומי)', url: 'https://main.knesset.gov.il/Activity/Legislation/Laws/Pages/LawSuggestionsSearch.aspx' },
+    { id: 'procurement', label: 'רכש ומכרזים', icon: ShoppingCart, desc: 'חיפוש הודעות פטור ומכרזים', url: 'https://mr.gov.il/' },
+    { id: 'planning', label: 'תכנון (הודעות הפקדה)', icon: LayoutList, desc: 'חיפוש הודעות על תוכניות מחוזיות', url: 'https://mavat.iplan.gov.il/planning-public-information' },
+    { id: 'courts', label: 'דיוני בג"ץ', icon: Scale, desc: 'יומן דיונים עתידי', url: 'https://supreme.court.gov.il/Pages/Diary.aspx' },
   ];
 
   const currentCat = categories.find(c => c.id === activeCategory);
@@ -250,13 +195,9 @@ const EditorialMeeting: React.FC<EditorialMeetingProps> = ({ onSaveToDashboard }
     <div className="max-w-7xl mx-auto md:h-[calc(100vh-100px)] flex flex-col gap-6 pb-10 md:pb-0">
       
       {selectedItem && (
-        <ResultModal 
-          item={selectedItem} 
-          onClose={() => setSelectedItem(null)} 
-        />
+        <ResultModal item={selectedItem} onClose={() => setSelectedItem(null)} />
       )}
 
-      {/* Top Navigation Tabs - Scrollable on mobile */}
       <div className="bg-white p-2 rounded-xl shadow-sm border border-slate-200 overflow-x-auto">
         <div className="flex gap-2 min-w-max px-2">
          {categories.map((cat) => {
@@ -268,7 +209,6 @@ const EditorialMeeting: React.FC<EditorialMeetingProps> = ({ onSaveToDashboard }
                onClick={() => {
                  setActiveCategory(cat.id);
                  setItems([]);
-                 // Smart Defaults based on category
                  if (['government_decisions', 'procurement', 'legislation_tazkirim'].includes(cat.id)) {
                     setTimeRange('month');
                  } else if (['knesset_agenda', 'courts', 'government_agenda', 'week_window'].includes(cat.id)) {
@@ -278,9 +218,7 @@ const EditorialMeeting: React.FC<EditorialMeetingProps> = ({ onSaveToDashboard }
                  }
                }}
                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
-                 isActive 
-                   ? 'bg-blue-600 text-white shadow-md' 
-                   : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                 isActive ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
                }`}
              >
                <Icon className="w-4 h-4" />
@@ -292,7 +230,6 @@ const EditorialMeeting: React.FC<EditorialMeetingProps> = ({ onSaveToDashboard }
       </div>
 
       <div className="flex flex-col md:flex-row gap-6 flex-1 min-h-0">
-        {/* Sidebar Configuration */}
         <div className="md:w-72 flex-shrink-0 space-y-4 md:overflow-y-auto custom-scrollbar">
           <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
             
@@ -304,7 +241,6 @@ const EditorialMeeting: React.FC<EditorialMeetingProps> = ({ onSaveToDashboard }
               <p className="text-xs text-blue-700">{currentCat?.desc}</p>
             </div>
 
-            {/* Time Range Selector */}
             <div className="mb-6">
               <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2 text-sm">
                 <Clock className="w-4 h-4 text-slate-500" />
@@ -326,46 +262,58 @@ const EditorialMeeting: React.FC<EditorialMeetingProps> = ({ onSaveToDashboard }
                 ))}
               </div>
             </div>
+
+            {/* Deep Scan Toggle */}
+            <div className="mb-6 p-4 bg-indigo-50 rounded-xl border border-indigo-100">
+              <div className="flex items-center justify-between mb-2">
+                 <h3 className="font-bold text-indigo-900 text-xs flex items-center gap-2">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    סריקה מורחבת (יסודית)
+                 </h3>
+                 <button 
+                  onClick={() => setIsDeepScan(!isDeepScan)}
+                  className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors focus:outline-none ${isDeepScan ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                 >
+                   <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${isDeepScan ? '-translate-x-5' : '-translate-x-1'}`} />
+                 </button>
+              </div>
+              <p className="text-[10px] text-indigo-700 leading-tight">
+                מפעיל מודל חשיבה עמוק לחיפוש אינטנסיבי במאגרים. מביא פי 3-4 יותר תוצאות.
+              </p>
+            </div>
             
             <button
               onClick={handleGenerate}
               disabled={loading}
-              className="w-full mt-2 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50 shadow-md shadow-blue-200"
+              className={`w-full mt-2 text-white py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50 shadow-md ${isDeepScan ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200'}`}
             >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-              סרוק מאגר
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : (isDeepScan ? <Zap className="w-4 h-4" /> : <RefreshCw className="w-4 h-4" />)}
+              {isDeepScan ? 'בצע סריקת עומק' : 'סרוק מאגר'}
             </button>
             
             <div className="mt-4 p-3 bg-yellow-50 border border-yellow-100 rounded-lg text-xs text-yellow-800 flex flex-col gap-2">
               <div className="flex gap-2">
                 <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                <p>
-                  המערכת סורקת דפי אינטרנט והודעות שפורסמו.
-                </p>
+                <p>המערכת סורקת דפי אינטרנט והודעות שפורסמו.</p>
               </div>
-              
               {currentCat?.url && (
-                <a 
-                  href={currentCat.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-2 w-full flex items-center justify-center gap-2 bg-white border border-yellow-300 text-yellow-800 py-2 rounded font-medium hover:bg-yellow-100 transition-colors"
-                >
-                  <Globe className="w-3 h-3" />
-                  למאגר הרשמי (כניסה ידנית)
+                <a href={currentCat.url} target="_blank" rel="noopener noreferrer" className="mt-2 w-full flex items-center justify-center gap-2 bg-white border border-yellow-300 text-yellow-800 py-2 rounded font-medium hover:bg-yellow-100 transition-colors">
+                  <Globe className="w-3 h-3" /> למאגר הרשמי (כניסה ידנית)
                 </a>
               )}
             </div>
           </div>
         </div>
 
-        {/* Main Content */}
         <div className="flex-1 bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col min-h-[500px] md:min-h-0">
           <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
             <div>
               <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
                 <Database className="w-5 h-5 text-blue-600" />
                 סורק מאגרים: {currentCat?.label}
+                {items.length > 20 && (
+                   <span className="bg-indigo-100 text-indigo-700 text-[10px] px-2 py-0.5 rounded-full font-bold animate-pulse">Deep Scan</span>
+                )}
               </h2>
               <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
                  <span>טווח זמן: {timeRanges.find(t => t.id === timeRange)?.label}</span>
@@ -378,20 +326,12 @@ const EditorialMeeting: React.FC<EditorialMeetingProps> = ({ onSaveToDashboard }
                    <button 
                     onClick={handleSaveToDashboard}
                     disabled={isSaved}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors text-sm font-medium border ${
-                      isSaved 
-                        ? 'bg-green-50 text-green-700 border-green-200' 
-                        : 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100'
-                    }`}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors text-sm font-medium border ${isSaved ? 'bg-green-50 text-green-700 border-green-200' : 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100'}`}
                   >
                     {isSaved ? <CheckCircle className="w-4 h-4" /> : <PlusCircle className="w-4 h-4" />}
                     <span className="hidden sm:inline">{isSaved ? 'נשמר לישיבה' : 'שמור לישיבת מערכת'}</span>
                   </button>
-                  
-                  <button 
-                    onClick={handleExport}
-                    className="flex items-center gap-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded-md transition-colors text-sm font-medium"
-                  >
+                  <button onClick={handleExport} className="flex items-center gap-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded-md transition-colors text-sm font-medium">
                     <Download className="w-4 h-4" />
                     <span className="hidden sm:inline">ייצוא ל-CSV</span>
                   </button>
@@ -405,8 +345,9 @@ const EditorialMeeting: React.FC<EditorialMeetingProps> = ({ onSaveToDashboard }
               <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-4 min-h-[400px]">
                 <Loader2 className="w-12 h-12 animate-spin text-blue-500" />
                 <div className="text-center space-y-1">
-                  <p className="font-medium text-slate-600">מבצע סריקת עומק והצלבת נתונים...</p>
+                  <p className="font-medium text-slate-600">{isDeepScan ? 'מבצע סריקת עומק יסודית במיוחד...' : 'מבצע סריקה והצלבת נתונים...'}</p>
                   <p className="text-sm">בונה טבלה עבור {currentCat?.label}...</p>
+                  {isDeepScan && <p className="text-xs text-indigo-500">זה עשוי לקחת כ-30-40 שניות עקב ריבוי שאילתות</p>}
                 </div>
               </div>
             )}
@@ -420,7 +361,6 @@ const EditorialMeeting: React.FC<EditorialMeetingProps> = ({ onSaveToDashboard }
 
             {!loading && items.length > 0 && (
               <div className="flex flex-col h-full">
-                {/* Responsive Table Container */}
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm text-right">
                     <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200 sticky top-0 z-10">
@@ -434,24 +374,14 @@ const EditorialMeeting: React.FC<EditorialMeetingProps> = ({ onSaveToDashboard }
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {visibleItems.map((item, idx) => (
-                        <tr 
-                          key={idx} 
-                          onClick={() => setSelectedItem(item)}
-                          className="hover:bg-slate-50/80 transition-colors group cursor-pointer"
-                        >
+                        <tr key={idx} onClick={() => setSelectedItem(item)} className="hover:bg-slate-50/80 transition-colors group cursor-pointer">
                           <td className="p-4 text-slate-500 align-top">{item.date}</td>
                           <td className="p-4 text-slate-600 font-medium align-top">{item.meta}</td>
                           <td className="p-4 text-slate-900 font-medium align-top">{item.title}</td>
                           <td className="p-4 text-slate-600 align-top leading-relaxed">{item.description}</td>
                           <td className="p-4 align-top">
                             {item.link ? (
-                              <a 
-                                href={item.link} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                onClick={(e) => e.stopPropagation()} // Prevent row click when clicking link directly
-                                className="inline-flex items-center justify-center p-2 rounded-full hover:bg-blue-100 text-blue-600 transition-colors"
-                              >
+                              <a href={item.link} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center justify-center p-2 rounded-full hover:bg-blue-100 text-blue-600 transition-colors">
                                 <ExternalLink className="w-4 h-4" />
                               </a>
                             ) : (
@@ -464,40 +394,14 @@ const EditorialMeeting: React.FC<EditorialMeetingProps> = ({ onSaveToDashboard }
                   </table>
                 </div>
 
-                {/* Load More Button */}
                 {hasMore && (
                   <div className="p-6 flex justify-center border-t border-slate-100 mt-auto bg-white/80 backdrop-blur-sm sticky bottom-0">
-                    <button
-                      onClick={loadMore}
-                      className="flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-300 shadow-sm hover:shadow-md hover:border-slate-400 text-slate-700 font-medium rounded-full transition-all"
-                    >
+                    <button onClick={loadMore} className="flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-300 shadow-sm hover:shadow-md hover:border-slate-400 text-slate-700 font-medium rounded-full transition-all">
                       <ChevronDown className="w-4 h-4" />
                       טען {Math.min(ITEMS_PER_PAGE, items.length - visibleCount)} נוספים
-                      <span className="text-xs text-slate-400 mr-1">
-                        (מציג {visibleCount} מתוך {items.length})
-                      </span>
+                      <span className="text-xs text-slate-400 mr-1">(מציג {visibleCount} מתוך {items.length})</span>
                     </button>
                   </div>
-                )}
-                
-                {sources.length > 0 && !hasMore && (
-                   <div className="p-6 bg-slate-50 border-t border-slate-100">
-                     <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">מקורות נוספים שאותרו</h3>
-                     <div className="flex flex-wrap gap-2">
-                       {sources.map((source, idx) => (
-                         <a 
-                           key={idx}
-                           href={source.uri}
-                           target="_blank"
-                           rel="noopener noreferrer"
-                           className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded text-xs text-slate-600 hover:text-blue-600 hover:border-blue-200 transition-colors max-w-[200px] truncate"
-                         >
-                           <ExternalLink className="w-3 h-3 flex-shrink-0 opacity-50" />
-                           <span className="truncate" dir="auto">{source.title}</span>
-                         </a>
-                       ))}
-                     </div>
-                   </div>
                 )}
               </div>
             )}
