@@ -14,7 +14,43 @@ View your app in AI Studio: https://ai.studio/apps/drive/1uXvwWt5rRW7y9ErwWeqjrb
 
 
 1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+   ```bash
+   npm install
+   ```
+
+2. Set up environment variables:
+   ```bash
+   cp .env.local.example .env.local
+   ```
+   Then edit `.env.local` and set your `GEMINI_API_KEY` to your Gemini API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
+
 3. Run the app:
-   `npm run dev`
+   ```bash
+   npm run dev
+   ```
+
+4. Preview the app:
+   - **Local development**: Open [http://localhost:3000](http://localhost:3000)
+   - **GitHub Codespaces**: Click the "Ports" tab and open the forwarded port 3000
+   - **Other cloud IDEs**: Use the preview URL provided by your environment
+
+The dev server is configured to run on `0.0.0.0:3000` to support previewing in cloud development environments.
+
+## Build for Production
+
+To create a production build:
+```bash
+npm run build
+```
+
+To preview the production build locally:
+```bash
+npm run preview
+```
+
+## Development in Cloud Environments
+
+This app is configured to work seamlessly in cloud development environments like GitHub Codespaces:
+- The Vite dev server binds to `0.0.0.0` to allow external access
+- Port 3000 is automatically forwarded in most cloud IDEs
+- No additional configuration needed for preview functionality
