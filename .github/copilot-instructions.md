@@ -10,7 +10,7 @@ JournalistAI (העוזר העיתונאי החכם) is a React + TypeScript + Vi
 ## Technology Stack
 - **Frontend**: React 19.2.0 with TypeScript
 - **Build Tool**: Vite 6.2.0
-- **AI Integration**: Google Gemini AI (@google/genai)
+- **AI Integration**: Google Gemini AI (@google/genai ^1.30.0)
 - **Styling**: TailwindCSS (via CDN)
 - **UI Components**: Lucide React icons
 - **Markdown Rendering**: react-markdown with remark-gfm
