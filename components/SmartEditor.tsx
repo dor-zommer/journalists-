@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { processTextWithGemini } from '../services/geminiService';
+import { processTextWithGemini, formatGeminiError } from '../services/geminiService';
 import { Sparkles, Copy, Loader2, Check, PenTool, FileText, Type, Quote, Radio } from 'lucide-react';
 
 const SmartEditor: React.FC = () => {
@@ -19,7 +19,7 @@ const SmartEditor: React.FC = () => {
       setOutputText(result);
     } catch (error) {
       console.error(error);
-      setOutputText("אירעה שגיאה. נסה שנית.");
+      setOutputText(`שגיאה: ${formatGeminiError(error)}`);
     } finally {
       setLoading(false);
     }

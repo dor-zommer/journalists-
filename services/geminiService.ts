@@ -2,7 +2,38 @@
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import { GroundingSource, TimeRange, EditorialCategory, BriefCategory, MonitorResult, EditorialItem, MonitorEntity, MonitorResponse } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+function getApiKey(): string {
+  const key = process.env.API_KEY || process.env.GEMINI_API_KEY;
+  if (!key || key === 'undefined' || key === 'your_api_key_here') {
+    throw new Error(
+      'מפתח API של Gemini לא הוגדר. ' +
+      'יש ליצור קובץ .env.local בתיקיית הפרויקט עם השורה:\n' +
+      'GEMINI_API_KEY=your-actual-api-key\n' +
+      'ניתן להשיג מפתח בכתובת: https://makersuite.google.com/app/apikey'
+    );
+  }
+  return key;
+}
+
+let _ai: GoogleGenAI | null = null;
+
+function getClient(): GoogleGenAI {
+  if (!_ai) {
+    _ai = new GoogleGenAI({ apiKey: getApiKey() });
+  }
+  return _ai;
+}
+
+export function formatGeminiError(error: unknown): string {
+  const msg = error instanceof Error ? error.message : String(error);
+  if (msg.includes('API key') || msg.includes('מפתח API')) return msg;
+  if (msg.includes('401') || msg.includes('UNAUTHENTICATED')) return 'מפתח ה-API אינו תקף. יש לבדוק שהמפתח נכון ופעיל.';
+  if (msg.includes('403') || msg.includes('PERMISSION_DENIED')) return 'אין הרשאה. יש לוודא שה-API מופעל בפרויקט Google Cloud.';
+  if (msg.includes('404') || msg.includes('NOT_FOUND')) return 'המודל לא נמצא. ייתכן ששם המודל שגוי או שאין גישה אליו.';
+  if (msg.includes('429') || msg.includes('RESOURCE_EXHAUSTED')) return 'חריגה ממכסת השימוש. יש לנסות שוב מאוחר יותר.';
+  if (msg.includes('fetch') || msg.includes('network') || msg.includes('Failed to fetch')) return 'שגיאת רשת. יש לבדוק את החיבור לאינטרנט.';
+  return `שגיאה בתקשורת עם Gemini: ${msg}`;
+}
 
 /**
  * Generates specific list based on category.
@@ -156,7 +187,7 @@ export const generateEditorialMeeting = async (
         break;
     }
 
-    const response = await ai.models.generateContent({
+    const response = await getClient().models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: prompt,
       config: {
@@ -217,7 +248,7 @@ export const monitorTopics = async (topics: string[], entities: MonitorEntity[],
       }
     `;
 
-    const response = await ai.models.generateContent({
+    const response = await getClient().models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: prompt,
       config: {
@@ -258,7 +289,7 @@ export const generateDailyBrief = async (categories: BriefCategory[], timeRange:
 
     const prompt = `דו"ח מודיעין יומי. נושאים: ${categories.join(', ')}. זמן: ${timeText}.`;
 
-    const response = await ai.models.generateContent({
+    const response = await getClient().models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: prompt,
       config: {
@@ -279,7 +310,7 @@ export const generateConsolidatedReport = async (items: string[]): Promise<strin
   try {
     const context = items.join("\n\n-----------------\n\n");
     const prompt = `פעל כעורך ראשי. הכן סיכום "ישיבת מערכת" מהממצאים: ${context}`;
-    const response = await ai.models.generateContent({
+    const response = await getClient().models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: prompt,
       config: { thinkingConfig: { thinkingBudget: 16384 } }
@@ -294,7 +325,7 @@ export const generateConsolidatedReport = async (items: string[]): Promise<strin
 export const processTextWithGemini = async (text: string, task: 'proofread' | 'summarize' | 'headlines' | 'quotes' | 'to_news'): Promise<string> => {
   const prompt = `משימה: ${task}. טקסט: ${text}`;
   try {
-    const response = await ai.models.generateContent({
+    const response = await getClient().models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: prompt,
     });

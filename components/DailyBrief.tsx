@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { generateDailyBrief } from '../services/geminiService';
+import { generateDailyBrief, formatGeminiError } from '../services/geminiService';
 import { FileText, Loader2, ExternalLink, RefreshCw, Filter, Download, CheckSquare, Square, Clock } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { GroundingSource, TimeRange, BriefCategory } from '../types';
@@ -41,7 +41,7 @@ const DailyBrief: React.FC = () => {
       setSources(result.sources);
       setLastUpdated(new Date());
     } catch (error) {
-      setReport("אירעה שגיאה בייצור הסיכום היומי. אנא נסה שנית.");
+      setReport(`שגיאה: ${formatGeminiError(error)}`);
     } finally {
       setLoading(false);
     }

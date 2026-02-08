@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
-import { generateEditorialMeeting } from '../services/geminiService';
-import { Loader2, ExternalLink, RefreshCw, Clock, Download, ListChecks, Building2, Gavel, Scale, FileText, LayoutList, Info, Globe, Briefcase, FileCode, ShoppingCart, Calendar, PlusCircle, CheckCircle, Database, ChevronDown, X, Zap, Sparkles } from 'lucide-react';
+import { generateEditorialMeeting, formatGeminiError } from '../services/geminiService';
+import { Loader2, ExternalLink, RefreshCw, Clock, Download, ListChecks, Building2, Gavel, Scale, FileText, LayoutList, Info, Globe, Briefcase, FileCode, ShoppingCart, Calendar, PlusCircle, CheckCircle, Database, ChevronDown, X, Zap, Sparkles, AlertTriangle } from 'lucide-react';
 import { GroundingSource, TimeRange, EditorialCategory, SavedItem, EditorialItem } from '../types';
 
 interface EditorialMeetingProps {
@@ -75,22 +75,25 @@ const EditorialMeeting: React.FC<EditorialMeetingProps> = ({ onSaveToDashboard }
   const [isSaved, setIsSaved] = useState(false);
   const [selectedItem, setSelectedItem] = useState<EditorialItem | null>(null);
   const [isDeepScan, setIsDeepScan] = useState(false);
-  
+  const [error, setError] = useState<string | null>(null);
+
   const [timeRange, setTimeRange] = useState<TimeRange>('month');
   const [activeCategory, setActiveCategory] = useState<EditorialCategory>('government_decisions');
-  
+
   const handleGenerate = async () => {
     setLoading(true);
     setItems([]);
     setSources([]);
     setVisibleCount(ITEMS_PER_PAGE);
     setIsSaved(false);
+    setError(null);
     try {
       const result = await generateEditorialMeeting(timeRange, activeCategory, isDeepScan);
       setItems(result.items);
       setSources(result.sources);
-    } catch (error) {
-      console.error(error);
+    } catch (err) {
+      console.error(err);
+      setError(formatGeminiError(err));
     } finally {
       setLoading(false);
     }
@@ -352,7 +355,23 @@ const EditorialMeeting: React.FC<EditorialMeetingProps> = ({ onSaveToDashboard }
               </div>
             )}
 
-            {!loading && items.length === 0 && (
+            {!loading && error && (
+              <div className="h-full flex flex-col items-center justify-center min-h-[400px] px-6">
+                <div className="bg-red-50 border border-red-200 rounded-xl p-6 max-w-lg text-center">
+                  <AlertTriangle className="w-10 h-10 text-red-500 mx-auto mb-3" />
+                  <h3 className="font-bold text-red-800 mb-2">שגיאה בסריקה</h3>
+                  <p className="text-red-700 text-sm whitespace-pre-line">{error}</p>
+                  <button
+                    onClick={() => setError(null)}
+                    className="mt-4 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors text-sm font-medium"
+                  >
+                    סגור
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {!loading && !error && items.length === 0 && (
               <div className="h-full flex flex-col items-center justify-center text-slate-400 min-h-[400px]">
                 <Briefcase className="w-16 h-16 opacity-20 mb-4" />
                 <p>בחר מאגר מידע מהתפריט ולח על "סרוק מאגר"</p>

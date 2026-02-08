@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { monitorTopics } from '../services/geminiService';
+import { monitorTopics, formatGeminiError } from '../services/geminiService';
 import { Search, Loader2, Plus, X, Globe, Calendar, AlertTriangle, ExternalLink, Clock, Building, Link as LinkIcon, Download, Share2, Mail, MessageCircle, Save, History, CheckCircle, Database, RotateCcw, ArrowRight } from 'lucide-react';
 import { MonitorResult, TimeRange, MonitorEntity, MonitorResponse, SavedItem, ArchivedScan } from '../types';
 import { v4 as uuidv4 } from 'uuid';
@@ -32,6 +32,7 @@ const Monitor: React.FC<MonitorProps> = ({ onSaveToDashboard }) => {
   // Results
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<MonitorResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // History / Archive
   const [archive, setArchive] = useState<ArchivedScan[]>([]);
@@ -77,6 +78,7 @@ const Monitor: React.FC<MonitorProps> = ({ onSaveToDashboard }) => {
     
     setLoading(true);
     setResponse(null);
+    setError(null);
     setIsSavedToDashboard(false);
 
     // Add to Search History
@@ -86,13 +88,13 @@ const Monitor: React.FC<MonitorProps> = ({ onSaveToDashboard }) => {
       topics: [...topicsToRun],
       entities: [...entitiesToRun]
     };
-    
+
     setSearchHistory(prev => {
       // Avoid exact duplicates at the top of the list
-      const isDuplicate = prev.length > 0 && 
-        JSON.stringify(prev[0].topics) === JSON.stringify(topicsToRun) && 
+      const isDuplicate = prev.length > 0 &&
+        JSON.stringify(prev[0].topics) === JSON.stringify(topicsToRun) &&
         JSON.stringify(prev[0].entities) === JSON.stringify(entitiesToRun);
-      
+
       if (isDuplicate) return prev;
       return [historyItem, ...prev].slice(0, 10);
     });
@@ -102,8 +104,7 @@ const Monitor: React.FC<MonitorProps> = ({ onSaveToDashboard }) => {
       setResponse(data);
     } catch (e) {
       console.error(e);
-      // Fallback
-      setResponse({ executiveSummary: [], results: [] });
+      setError(formatGeminiError(e));
     } finally {
       setLoading(false);
     }
@@ -448,10 +449,26 @@ ${response.executiveSummary.join('\n- ')}`;
           {/* Search View */}
           {activeTab === 'search' && (
             <div className="flex-1 lg:overflow-y-auto custom-scrollbar p-1">
-              {!response && !loading && (
+              {!response && !loading && !error && (
                 <div className="h-full flex flex-col items-center justify-center text-slate-400">
                   <Search className="w-16 h-16 mx-auto mb-4 opacity-10" />
                   <p>הגדר מילות מפתח, גופים וזמנים ולחץ על סריקה</p>
+                </div>
+              )}
+
+              {!loading && error && (
+                <div className="h-full flex flex-col items-center justify-center px-6">
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-6 max-w-lg text-center">
+                    <AlertTriangle className="w-10 h-10 text-red-500 mx-auto mb-3" />
+                    <h3 className="font-bold text-red-800 mb-2">שגיאה בסריקה</h3>
+                    <p className="text-red-700 text-sm whitespace-pre-line">{error}</p>
+                    <button
+                      onClick={() => setError(null)}
+                      className="mt-4 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors text-sm font-medium"
+                    >
+                      סגור
+                    </button>
+                  </div>
                 </div>
               )}
 
